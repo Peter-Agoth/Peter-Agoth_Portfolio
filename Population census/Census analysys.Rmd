@@ -1,0 +1,115 @@
+---
+title: "Australian Population Analysis"
+author: "Peter Agoth"
+date: "02/02/2020"
+output: html_document
+---
+```{r }
+library(dplyr)
+library(ggplot2)
+```
+
+```{r message=FLASE, warning=FALSE, echo=TRUE}
+data2020 <- read.csv("pop_dataset_0003.csv")
+df <- data.frame(data2020)
+```
+#Summaries
+```{r summary statistics}
+df %>% summarise(mean_age = mean(age),mean_population=mean(population))
+```
+# group the mean ages by region
+```{r grouping by regions}
+df %>% group_by(region)%>%summarise(mean_age = mean(age),mean_population=mean(population))
+```
+#Total population
+```{r total population}
+df_pop=df %>% group_by(region)%>%summarise (total_population = sum(population))
+df_pop
+
+df_pop_m=df %>% group_by(region)%>%summarise(min_population = min(population),max_population = max(population), mean_population = mean(population, na.rm = TRUE))
+print(df_pop_m)
+```
+#filter by using the age of <25 years and select the regions
+```{r }
+df_pop_r=df %>% group_by(region) %>% filter(age <25) %>% mutate(total_population=sum(population), range_population=(max(population)-min(population))) %>% select(region,total_population,range_population) %>% distinct() %>% arrange(desc(total_population))
+print(df_pop_r)
+```
+# Filter for ages between 10 to 25 years and select regions
+```{r Select between 10 and 25}
+df_pop_10_25= df%>% group_by(region) %>% filter(age %in% (10:25)) %>% mutate(total_population=sum(population),range_population=(max(population)-min(population))) %>% select(region, total_population,range_population) %>% distinct() %>% arrange(desc(total_population))
+df_pop_10_25
+
+```
+# Filter for ages of 10 years and select region.
+```{r  }
+df_pop_10_25= df%>% group_by(region) %>% filter(age == 10) %>% mutate(total_population=sum(population),range_population=(max(population)-min(population))) %>% select(region, total_population,range_population) %>% distinct()
+df_pop_10_25
+```
+# Mean age from the regions
+```{r  }
+#x:region, x1 :age, x2:population:
+mean_reg<-function(x,x1,x2){
+  #Determing the unique names of the regions
+  uq_name=c()
+  for(i in 1:length(x))
+  {
+    uq_name=c(unique(as.matrix(x[i])), uq_name)
+    uq_name=unique(uq_name)
+  }
+  #Estimating the mean of the regions
+  #Initialisizng the values: vals is used to cpture the region name, val_mean is used to capture the mean, dcm_pls: decimal places
+  vals=0:val_mean=0:dcm_pls=2
+  for (i in 1:length(uq_name)) {
+    vals[i] <- uq_name[i]
+    val_mean[i]=round((mean(rep(x1[x==vals[i]],x2[x==vals[i]]))),dcm_pls=2)
+  }
+  #Build the result in to a dataframe
+  rslt=data.frame(uq_name,val_mean)
+  #changing the column names of the dataframe
+  colnames(rslt)=c("region","mean_age")
+  rslt
+}
+
+#compute the mean age of the regions
+Age_mean_reg=(mean_reg(df$region,df$age,df$population))
+```
+#plot histogram of the mean ages from each region
+```{r  }
+binwidth <-0.5
+gg<-ggplot()
+gg<-gg + geom_histogram(aes(x =Age_mean_reg$mean_age), binwidth = binwidth, colour ="white", fill = "cornflowerblue", size = 0.1)
+gg<-gg + labs(x='mean Age', y ='count')
+gg
+```
+#Find the region with the highest population
+```{r  }
+pop_counts<- df %>% group_by(region) %>% mutate(n=sum(population)) %>% select(region,n) %>% distinct() %>% arrange(desc(n))
+print(pop_counts)
+#Select the region with the highest population
+region_most <- as.character(pop_counts$region[1])
+n_most <- pop_counts$n[1]
+print (paste0('Region with the highest population:',region_most,'with number = ', n_most))
+
+#Extract the region_most
+cnd=df[,'region']==region_most
+pop_most=df[cnd,]
+pop_most=pop_most %>% group_by(age) %>% mutate(total_population=sum(population)) %>% select(age, total_population) %>% distinct()
+
+#plot distribution
+title_txt <- sprintf('population distribution for %s', region_most)
+gg <- ggplot()
+gg <- gg + geom_point(aes(x=pop_most$age, y=pop_most$total_population))
+gg <- gg + labs(x='Ages', y='count', title = title_txt)
+gg
+
+#Plot columtative distribution
+pop_most$cumsum <- cumsum(pop_most$total_population)
+
+title_txt <- sprintf('Cumultative population distribution for %s', region_most)
+gg <- ggplot()
+gg <- gg + geom_point(aes(x=pop_most$age, y=pop_most$total_population))
+gg <- gg + labs(x='Ages', y='cumultative count', title = title_txt)
+gg
+
+```
+
